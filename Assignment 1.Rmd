@@ -1,0 +1,64 @@
+---
+title: "Start"
+date: "2022-09-10"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+--
+title: "Assignment1 Final"
+output: pdf_document
+---
+
+## R Markdown
+
+##Dataset source picked from Kaggle.com of Monkey_Pox_Cases_Worldwide
+#https://www.kaggle.com/code/deepcontractor/monkey-pox-dataset
+
+
+
+##Loading CSV file to a dataframe
+
+```{r}
+getwd()
+setwd("C:/Users/haris/Documents/Fall 2022/FML/Assignment 1")
+Monkeypox_p1 <- read.csv("monkeypox_df.csv")
+```
+
+## The descriptive statistics for a selection of quantitative and categorical variables in the data
+
+
+```{r}
+
+##For Quantitative Variable
+mean(Monkeypox_p1$Confirmed_Cases)
+summary(Monkeypox_p1$Confirmed_Cases)
+##For Categorical Variable
+table(Monkeypox_p1$Country)
+summary(Monkeypox_p1$Country)
+```
+
+##Transformation of variables
+
+```{r results='hide'}
+##We are applying log transformation
+log(Monkeypox_p1$Confirmed_Cases)
+```
+
+##Plotting
+
+```{r}
+##Plot
+plot(Monkeypox_p1$Confirmed_Cases)
+##Scatter Plot
+plot(Monkeypox_p1$Confirmed_Cases,Monkeypox_p1$Suspected_Cases,main = "Sample ScatterPlot", xlim = c(1,100), ylim = c(1,100))
+```
+
+
+
