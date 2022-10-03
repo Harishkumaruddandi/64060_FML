@@ -1,0 +1,180 @@
+---
+title: "Assignment_2"
+output:
+  pdf_document: default
+author: "Harish kumar uddandi"
+date: "2022-10-01"
+---
+
+
+
+```{r setup, include=FALSE,message =FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+##Loading CSV file to read and create a data frame
+
+```{r}
+library(caret)
+library(e1071)
+library(dplyr)
+
+
+UniversalBank_data <- read.csv("UniversalBank.csv")
+```
+
+
+```{r}
+str(UniversalBank_data)            
+colSums(is.na(UniversalBank_data)) # To check the data set missing values
+summary(UniversalBank_data)
+
+```
+
+#Transforming variables and introducing dummy variables.using a dummy to test the implementation
+
+
+```{r message=FALSE, warning=FALSE}
+library(dummies)
+library(dplyr)
+UniversalBank_data$Education = as.factor(UniversalBank_data$Education) 
+Universal_dummy_bank <- dummy.data.frame(select(UniversalBank_data,-c(ZIP.Code,ID)))
+Universal_dummy_bank$Personal.Loan <- as.factor(Universal_dummy_bank$Personal.Loan)
+```
+
+
+##Splitting  the data into  training and validation.
+
+```{r}  
+
+set.seed(123)
+
+Train_index <- createDataPartition(Universal_dummy_bank$Personal.Loan, p=0.6,list = FALSE,times = 1)
+
+Train.df=Universal_dummy_bank[Train_index,] #Assigning the Train_index to the training data frame
+
+Validation.df=Universal_dummy_bank[-Train_index,]  #Assigning the rest(Validation_index) to the validation data frame 
+
+Conditions = data.frame(Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, Education1 = 0, Education2 =1, Education3 = 0, Mortgage = 0, Securities.Account = 0, CD.Account = 0, Online = 1,CreditCard = 1)
+
+ #Normalizing the data
+Normal <- preProcess(Train.df,method=c("center","scale")) 
+# Prediction using normalized data into training model 
+Train.df <- predict(Normal,Train.df)  
+# Predicting the normalized data with validation data frame
+Validation.df <-predict(Normal,Validation.df) 
+# predicting the normalized data with conditions 
+Conditions = predict(Normal,Conditions)  
+```
+
+
+```{r}
+library(caret)
+library(class)
+library(ISLR)
+K1 <- knn(train = Train.df[,-c(10)],test = Conditions, cl = Train.df[,c(10)],k=1, prob=TRUE) # applying the knn algorithm
+
+
+Knnattributes <- attributes(K1)  #determining the attributes
+Knnattributes[1]
+Knnattributes[3]
+```
+
+
+2) What is a choice of k that balances between overfitting and ignoring the predictor
+information?
+
+
+```{r}
+accuracy.df <- data.frame(k = seq(1,5,1), accuracy = rep(0,5)) # data frame accuracy to check the k values from 1 to 5
+for(i in 1:5)  
+{
+K2 <- knn(train = Train.df[,-10],test = Validation.df[,-10], cl = Train.df[,10],
+k=i, prob=TRUE)
+accuracy.df[i, 2] <- confusionMatrix(K2, Validation.df[,10])$overall[1] # for loop to generate accuracy for k values from 1 to 5
+}
+accuracy.df # k=1 has the highest accuracy
+```
+
+3) Show the confusion matrix for the validation data that results from using the best k.
+
+```{r}
+K3<- knn(train = Train.df[,-10],test = Validation.df[,-10], cl = Train.df[,10],
+k=1, prob=TRUE) # using validation data we are showing the confusion matrix with 96 % accuracy
+confusionMatrix(K3, Validation.df[,10]) 
+```
+
+
+4) Consider the following customer: Age = 40, Experience = 10, Income = 84, Family = 2,
+CCAvg = 2, Education_1 = 0, Education_2 = 1, Education_3 = 0, Mortgage = 0, Securities
+Account = 0, CD Account = 0, Online = 1 and Credit Card = 1. Classify the customer using the
+best k.
+
+```{r}
+Customer123 =data.frame(Age = (40), Experience = (10), Income = (84), Family
+= (2), CCAvg = (2), Education1 = (0), Education2 = (1), Education3 = (0),
+Mortgage = (0), Securities.Account = (0), CD.Account = (0), Online = (1),
+CreditCard = (1))
+K4 <- knn(train = Train.df[,-10],test = Customer123, cl = Train.df[,10], k=3,
+prob=TRUE) #  best value of K is 3
+
+Knnattributes <- attributes(K4) 
+Knnattributes[3]
+
+K4
+```
+
+
+5) Repartition the data, this time into training, validation, and test sets (50% : 30% : 20%).
+Apply the k-NN method with the k chosen above. Compare the confusion matrix of the test
+set with that of the training and validation sets. Comment on the differences and their reason.
+
+```{r message=FALSE, warning=FALSE}
+set.seed(1123)
+Train_index1 <- sample(rownames(Universal_dummy_bank), 0.5*dim(Universal_dummy_bank)[1]) ## 50%  data partition
+set.seed(123)
+valid.index <- sample(setdiff(rownames(Universal_dummy_bank),Train_index1),0.3*dim(Universal_dummy_bank)[1]) #30 % validation
+test.index = setdiff(rownames(Universal_dummy_bank), union(Train_index1, valid.index)) #20 % in test data
+
+
+# loading index values to respective data frame.
+Train.df1 <- Universal_dummy_bank[Train_index1, ]
+Validation.df1 <- Universal_dummy_bank[valid.index, ]
+test.df1 <- Universal_dummy_bank[test.index, ]
+
+Normalized <- preProcess(Train.df1, method=c("center", "scale"))
+Train.df1 <- predict(Normalized, Train.df1) #predicting train data with normalized data
+Validation.df1 <- predict(Normalized, Validation.df1) #predicting Valid data with normalized data
+test.df1 <- predict(Normalized, test.df1) # predicting Test data with normalized data
+```
+
+
+```{r}
+#Applying Knn Algorithm for test, train, valid sets
+Testknn <- knn(train = Train.df1[,-c(10)],test = test.df1[,-c(10)], cl =
+Train.df1[,10], k=6, prob=TRUE)
+
+ValidKnn <- knn(train = Train.df1[,-c(10)],test = Validation.df1[,-c(10)], cl = Train.df1[,10], k=5, prob=TRUE)
+
+TrainKnn <- knn(train = Train.df1[,-c(10)],test = Train.df1[,-c(10)], cl = Train.df1[,10], k=4, prob=TRUE)
+```
+
+# Confusion matrix for test, train, and valid that has been processed using the KNN algorithm
+
+```{r}
+# Matrix for predicted values and actual values for Testing 
+confusionMatrix(Testknn, test.df1[,10])
+confusionMatrix(ValidKnn, Validation.df1[,10])
+confusionMatrix(TrainKnn, Train.df1[,10])
+```
+
+#Comments:
+#We Can observe different K values has been considered for test, validation ,train  values , so accuracy in confusion matrix will be differenct since k value is different hence accuracy will be change among these 3 and so does classfication.
+
+
+
+
+
+
