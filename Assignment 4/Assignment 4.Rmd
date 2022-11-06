@@ -1,0 +1,162 @@
+---
+title: 'Assignment 4 '
+author: "Harish Kumar uddandi"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(caret)
+library(ISLR)
+library(factoextra) 
+library(tidyverse) 
+library(flexclust)
+set.seed(64060)
+getwd()
+setwd("C:/FALL/ML")
+
+KMC <- read.csv("Pharmaceuticals.csv")
+head(KMC)
+```
+
+a. Use only the numerical variables (1 to 9) to cluster the 21 firms. Justify the various choices made in conducting the cluster analysis, such as weights for different variables, the specific clustering algorithm(s) used, the number of clusters formed, and so on.
+
+
+```{r}
+# Columns 1 - 9 for 21 firms
+ColumnNums <- KMC [,3:11] # Considering column 3-11 i.e numerical variables
+head(ColumnNums) 
+ColumnNums <- scale(ColumnNums)
+ summary(ColumnNums)
+ #The distance between each data point and the centroid is calculated using the Eucledian distance.
+Distance_ColumnNums <-get_dist(ColumnNums, method = "euclidean", stand = FALSE) 
+Distance_ColumnNums
+```
+
+
+
+#Elbow and Silhouette methods are used to find the optimal number of clusters. 
+#Elbow Method
+```{r}
+library(factoextra) # clustering algorithms & visualization
+library(flexclust)
+fviz_nbclust(ColumnNums,kmeans,method="wss") 
+```
+
+#the  plot shows a clear elbow is at k = 2. Also as the above graph is not clear as it did not show any sharp point at 2. We can use 3 or 4 or 5 as the 'K' value too.
+
+#Silhouttes method
+```{r}
+#Silhouttes method
+fviz_nbclust(ColumnNums,kmeans,method="silhouette")
+```
+
+#The optimal clusters were determined as 2 using the elbow approach, but when we utilized the Silhouettes method, we obtained a value of 5. We will use the silhouettes approach in this case because the elbow method was unclear in identifying the optimal cluster.
+#We have determined how many clusters there are. We will now use the K-means method.
+
+```{r}
+#Applying K-means Algorithm
+KMean_chk <- kmeans(ColumnNums, centers = 5, nstart = 25) #Number of restarts = 25
+KMean_chk
+```
+
+
+#Centers
+```{r}
+KMean_chk$centers
+```
+
+#Size
+```{r}
+KMean_chk$size
+```
+
+#Cluster
+
+```{r}
+KMean_chk$cluster[c(1:21)] 
+```
+
+
+
+
+```{r}
+fviz_cluster(KMean_chk, data = ColumnNums)
+```
+
+From the above, 5 clusters have been identified. The symbols/shapes in each cluster are 'centroids' of that specific cluster.No other centroid can be considered until new data is added, due to the criteria of Nstart value 25 and higher.
+
+
+```{r}
+library(cluster)
+Cluster_Plot <- kmeans(ColumnNums,5)
+clusplot(ColumnNums, Cluster_Plot$cluster, color=TRUE, shade=TRUE, labels=2, lines=0) 
+```
+
+
+
+
+
+(b) Interpret the clusters with respect to the numerical variables used in forming the clusters.
+
+#In Excel, rows begin with 2. The rows have therefore been discussed starting with row one for our convenience. (Row 2 in this case)
+First  Cluster_Red   =  Rows are 2, 6, 18
+Second Cluster_Green =  Rows are 1,4,7,10,16,19,21
+Third  Cluster_Blue  =  Rows are 8,9,12,14
+Fourth Cluster_Pink  =  Rows are 3,5,20
+Fifth  Cluster_Pink(last) = Rows are 11,13,15,17
+
+
+# We calculate the mean of all the numerical variables.
+```{r}
+aggregate(ColumnNums,by=list(Cluster_Plot$cluster),FUN=mean)
+ColumnNums1 <- data.frame(ColumnNums, Cluster_Plot$cluster)
+```
+
+
+First Cluster =   has Highest PE_Ratio and lowest Net_Profit_Margin, ROA
+
+Second Cluster = has Highest Net_Profit_Margin and Lowest Rev_Growth, Beta
+
+Third Cluster = has Highest Leverage, Beta and Lowest ROA
+
+Fourth Cluster = has Highest Rev_Growth and Lowest Beta, ROE Market_Cap 
+
+Fifth Cluster = has Highest Market_Cap, ROA, ROE and Lowest Leverage
+
+
+
+
+(c) Is there a pattern in the clusters with respect to the numerical variables (10 to 12)? (those not used in forming the clusters)
+
+In First Cluster,There is a high PE Ratio and a low Net Profit Margin and ROA. The Median Recommendation for this cluster is "Moderate Buy" for all the points.
+
+In Second Cluster, Low Rev Growth, Beta and high Net Profit Margin are present. The Median Recommendation is usually advised to be set on "Hold" for the majority of the points for this cluster.
+
+In Third Cluster,High Leverage, Beta, and Low ROA are present.  The Median Recommendation for this cluster primarily supports a Moderate Buy. 
+
+In Fourth Cluster ,High Rev Growth and Lowest Beta, together with ROE Market Cap are present . The Median suggestion indicates equal Strong Buy, Moderate Buy, and Moderate Sell recommendations for this cluster.
+
+In Fifth Cluster, High Market Cap, Lowest Leverage, and High ROA and ROE present. Both Hold and Moderate Buy recommendations are included in the Median Recommendation for this cluster.
+
+
+
+(d)  Provide an appropriate name for each cluster using any or all of the variables in the dataset.
+
+
+First Cluster- Low Net_Profit_Margin and ROA cluster or Moderate Buy Cluster
+
+Second Cluster- Low Rev_Growth, Beta cluster or Hold Cluster
+
+Third Cluster- High Leverage, Beta cluster or 'Moderate Cluster
+
+Fourth Cluster- High Rev_Growth and Lowest Beta, ROE Market_Cap Cluster
+
+Fifth Cluster- High Market_Cap, ROA, ROE and Lowest Leverage Cluster
