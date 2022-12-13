@@ -1,0 +1,244 @@
+---
+title: "BASICS OF MACHINE LANGUAGE FINAL ASSIGNMENT"
+author: "Harish Kumar uddandi"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(caret)
+library(ISLR)
+library(factoextra) 
+library(tidyverse) 
+library(flexclust)
+library(cluster)
+library(gridExtra)
+
+```
+
+
+#Loading dataset
+```{r}
+data<-read.csv("C:/FALL/ML/fuel_receipts_costs_eia923.csv")
+str(data)  
+```
+
+#selecting attributes 
+```{r}
+
+data_df<-data[,c(8,12,13,14,16)]
+str(data_df)
+colMeans(is.na(data_df))
+
+```
+
+#Data Imputing
+```{r}
+
+data_df$fuel_cost_per_mmbtu[is.na(data_df$fuel_cost_per_mmbtu)] <- mean(data_df$fuel_cost_per_mmbtu, na.rm = TRUE) 
+colMeans(is.na(data_df))  #all the missing values has been imputed 
+
+```
+
+#.sampling and partition of the data
+```{r}
+set.seed(2424)
+sample_data <- data_df[sample(nrow(data_df), size = 13500, replace = FALSE), ]
+train_index <- createDataPartition(sample_data$fuel_cost_per_mmbtu, p=0.75, list = FALSE)
+train_data<- sample_data[train_index,]
+test_data<- sample_data[-train_index,]
+
+
+
+```
+
+# normalization of the data.
+```{r}
+cluster_data <- train_data %>% select( 'ash_content_pct', 'sulfur_content_pct','fuel_mmbtu_per_unit','fuel_cost_per_mmbtu')
+
+cluster_train <- preProcess(cluster_data, method = "range")
+cluster_predict <- predict(cluster_train, cluster_data)
+
+summary(cluster_predict)
+```
+
+
+
+#Elbow and Silhouette methods are used to find the optimal number of clusters. 
+#Elbow Method
+```{r}
+library(factoextra) # clustering algorithms & visualization
+library(flexclust)
+fviz_nbclust(cluster_predict,kmeans,method="wss") 
+```
+
+#in the plot a clear elbow is at k = 2. Also as the above graph is not clear as it did not show any sharp point at 2. We can use 3 or 4 or 5 as the 'K' value too.
+
+#Silhouttes method
+```{r}
+#Silhouttes method
+fviz_nbclust(cluster_predict,kmeans,method="silhouette")
+```
+
+#As observed in elbow method, the optimal clusters identified as 2, but when we have used Silhouttes method, we got the value as 6. As the elbow method was not clear in determining the optimal cluster, we shall use Silhouttes method here
+#We have identified the number of clusters. Now we shall apply K-means algorithm
+
+```{r}
+#Applying K-means Algorithm
+KMean_chk <- kmeans(cluster_predict, centers = 6, nstart = 25) #Number of restarts = 25
+```
+
+
+#Centers
+```{r}
+KMean_chk$centers
+
+```
+
+#Plotting the cluster using k K-means Algorithm
+```{r}
+fviz_cluster(KMean_chk, data = cluster_data)
+```
+
+#Plotting the Sillohuette average
+```{r}
+si <- silhouette(KMean_chk$cluster, dist(cluster_predict))
+fviz_silhouette(si)
+```
+#Hence Si(silHouetee coeffient ) value > 0 , i.e 0.83, hence it is a good  clustered.
+
+
+#The final cluster 
+```{r}
+fcluster<- KMean_chk$cluster
+f_cluster<- cbind(train_data, fcluster)
+f_cluster$fcluster<-as.factor(f_cluster$fcluster)
+head(f_cluster)
+
+```
+
+# We find the mean of all the quantitative variables 
+```{r}
+f_cluster%>%group_by(fcluster)%>%
+  summarize(
+    fuel_mmbtu_per_unit=mean(fuel_mmbtu_per_unit),
+            fuel_cost_per_mmbtu=mean(fuel_cost_per_mmbtu),
+            sulfur_content=mean(sulfur_content_pct),
+    ash_content=mean(ash_content_pct))
+```
+
+# Plotting number of ash contents 
+```{r}
+ggplot(f_cluster) +
+  aes(x = fcluster, y = ash_content_pct) +
+  geom_jitter(size = 1.2) +
+  labs(title = "Ash Content in Clusters") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))
+
+```
+
+# Plotting number of clusters 
+```{r}
+ggplot(f_cluster) +
+
+  aes(x = fcluster, fill = fuel_group_code) +
+
+  geom_bar() +
+
+  scale_fill_brewer(palette = "Accent", direction = 1) +
+
+  labs(x = "Clusters", title = "Classification of Clusters") +
+
+  theme_minimal() +
+
+  theme(
+
+    plot.title = element_text(size = 16L,
+
+    face = "bold",
+
+    hjust = 0.5),
+
+    axis.title.x = element_text(size = 16L,
+
+    face = "bold")
+
+  )
+```
+
+
+
+#Use multiple-linear regression to determine the best set of variables to predict fuel_cost_per_mmbtu.
+
+#training data 
+```{r}
+ML_df<- f_cluster
+fuel<-ML_df[,-c(1)]
+fuel_ML<- preProcess(fuel, method = "range")
+fuel_predict <- predict(fuel_ML, fuel)
+head(fuel_predict)
+```
+
+#performing multiple linear regression model on training data 
+```{r}
+k<-fuel_predict$fuel_cost_per_mmbtu
+
+ 
+Z5<- fuel_predict$fuel_mmbtu_per_unit 
+Z6<- fuel_predict$sulfur_content_pct
+Z7<- fuel_predict$ash_content_pct
+```
+
+```{r}
+model_check <- lm(fuel_cost_per_mmbtu~.,data=fuel_predict)
+summary(model_check)
+
+``` 
+
+#Use the anova analysis
+```{r}
+anova(model_check)
+```
+
+
+#Test data
+```{r}
+Check_df<- test_data
+fuel<-Check_df[,-c(1)]
+fuel_chk<- preProcess(fuel, method = "range")
+fuel_check <- predict(fuel_chk, fuel)
+head(fuel_check)
+
+```
+
+#performing multiple linear regression model on test data 
+```{r}
+M<-fuel_check$fuel_cost_per_mmbtu
+
+C6<- fuel_predict$fuel_mmbtu_per_unit 
+C7<- fuel_predict$sulfur_content_pct
+C8<- fuel_predict$ash_content_pct
+```
+
+```{r}
+model_check1 <- lm(fuel_cost_per_mmbtu~.,data=fuel_check)
+summary(model_check1)
+
+``` 
+
+#Use the anova analysis to predict the model
+```{r}
+anova(model_check1)
+```
+
+The cluster information does not plays an important role to predict fuel_cost_per_mmbtu, since the primary objective of my model  is find the ash content, so cost is not playing crucial role.
